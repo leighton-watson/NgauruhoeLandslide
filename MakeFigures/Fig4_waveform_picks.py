@@ -7,7 +7,8 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from obspy import read
+from obspy import read, read_inventory
+from obspy.geodetics.base import gps2dist_azimuth
 
 
 HERE = Path(__file__).resolve().parent
@@ -16,7 +17,12 @@ DATA_DIR = HERE.parent / "DATA"
 ANALYSIS_CODES_DIR = HERE.parent / "AnalysisCodes"
 SEISMIC_MSEED = DATA_DIR / "seismic_20260321_133600.mseed"
 INFRASOUND_MSEED = DATA_DIR / "infrasound_20260321_133600.mseed"
+SEISMIC_XML = DATA_DIR / "seismic_20260321_133600.xml"
+INFRASOUND_XML = DATA_DIR / "infrasound_20260321_133600.xml"
 PICKS_CSV = ANALYSIS_CODES_DIR / "picked_arrivals.csv"
+
+CRATER_LAT = -39.1566302543244
+CRATER_LON = 175.63253480007924
 
 START_OFFSET_S = 0.0
 FILTER_END_OFFSET_S = 60.0
@@ -32,6 +38,27 @@ LABEL_FONTSIZE = 18
 TICK_FONTSIZE = 18
 TEXT_FONTSIZE = 20
 SPACING = -2.0
+
+
+def _load_station_distances(xml_paths):
+    station_distances = {}
+
+    for xml_path in xml_paths:
+        inventory = read_inventory(str(xml_path))
+        for network in inventory:
+            for station in network:
+                if station.code in station_distances:
+                    continue
+
+                distance_m, _, _ = gps2dist_azimuth(
+                    CRATER_LAT,
+                    CRATER_LON,
+                    station.latitude,
+                    station.longitude,
+                )
+                station_distances[station.code] = distance_m / 1000.0
+
+    return station_distances
 
 
 def _load_picks(path: Path) -> pd.DataFrame:
@@ -125,14 +152,18 @@ if __name__ == "__main__":
     picks = _load_picks(PICKS_CSV)
     st_seis = _prepare_stream(SEISMIC_MSEED, SEISMIC_FREQ_MIN, SEISMIC_FREQ_MAX)
     st_inf = _prepare_stream(INFRASOUND_MSEED, INFRASOUND_FREQ_MIN, INFRASOUND_FREQ_MAX)
+    station_distance_km = _load_station_distances([SEISMIC_XML, INFRASOUND_XML])
 
     seismic_lookup = _trace_lookup(st_seis)
     infrasound_lookup = _trace_lookup(st_inf)
 
-    # Match Fig2_waveforms.py by assigning colours from the seismic MiniSEED
-    # file in ../DATA so station colours stay consistent across figures.
+    # Match Fig2_waveforms.py by assigning colours from summit-distance order
+    # so station colours stay consistent across figures.
     color_reference_stream = _prepare_stream(SEISMIC_MSEED, SEISMIC_FREQ_MIN, SEISMIC_FREQ_MAX)
-    seismic_station_order = _unique_station_order(color_reference_stream)
+    seismic_station_order = sorted(
+        _unique_station_order(color_reference_stream),
+        key=lambda station: (station_distance_km.get(station, np.inf), station),
+    )
     station_order = [
         station for station in seismic_station_order
         if station in set(picks["station"]) and station in infrasound_lookup

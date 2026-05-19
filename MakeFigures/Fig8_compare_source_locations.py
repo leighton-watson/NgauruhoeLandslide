@@ -65,7 +65,7 @@ DOMAIN_NORTH_MIN = 5.659e6
 DOMAIN_NORTH_MAX = 5.665e6
 ASL_COLORMAP = "YlOrBr"
 SARA_COLORMAP = "Greens"
-DIFF_COLORMAP = "Greys"
+DIFF_COLORMAP = "magma"
 
 def _enable_interactive_backend():
     if not TRY_SPYDER_INTERACTIVE_BACKEND:

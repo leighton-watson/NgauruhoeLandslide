@@ -1,12 +1,42 @@
-from obspy import read
+from obspy import read, read_inventory
+from obspy.geodetics.base import gps2dist_azimuth
 import matplotlib.pyplot as plt
 import numpy as np
+
+CRATER_LAT = -39.1566302543244
+CRATER_LON = 175.63253480007924
+
+
+def load_station_distances(xml_paths):
+    """Return station distances from Ngauruhoe summit in km."""
+    station_distances = {}
+
+    for xml_path in xml_paths:
+        inv = read_inventory(xml_path)
+        for network in inv:
+            for station in network:
+                if station.code in station_distances:
+                    continue
+
+                distance_m, _, _ = gps2dist_azimuth(
+                    CRATER_LAT,
+                    CRATER_LON,
+                    station.latitude,
+                    station.longitude,
+                )
+                station_distances[station.code] = distance_m / 1000.0
+
+    return station_distances
 
 # -------------------------
 # Load data
 # -------------------------
 st_seis = read("../DATA/seismic_20260321_133600.mseed")
 st_inf = read("../DATA/infrasound_20260321_133600.mseed")
+station_distance_km = load_station_distances([
+    "../DATA/seismic_20260321_133600.xml",
+    "../DATA/infrasound_20260321_133600.xml",
+])
 
 # -------------------------
 # Preprocess seismic
@@ -30,15 +60,19 @@ st_inf_plot.filter("bandpass", freqmin=2, freqmax=15, corners=4, zerophase=True)
 st_inf_plot.sort(keys=["station"])
 
 # -------------------------
-# Build station order from seismic
+# Build station order from seismic, nearest to Ngauruhoe summit first.
 # This defines the row layout for BOTH panels
 # -------------------------
 seis_stations = [tr.stats.station for tr in st_seis_plot]
-station_order = []
+seis_station_order = []
 for sta in seis_stations:
-    if sta not in station_order:
-        station_order.append(sta)
-        
+    if sta not in seis_station_order:
+        seis_station_order.append(sta)
+
+station_order = sorted(
+    seis_station_order,
+    key=lambda sta: (station_distance_km.get(sta, np.inf), sta),
+)
 
 # Choose a colormap with enough distinct colors
 cmap = plt.get_cmap("tab20")  # good up to ~20 stations
@@ -139,6 +173,23 @@ ax_seis.set_yticklabels(ylabels, fontsize=16)
 ax_inf.set_yticks(yticks)
 ax_inf.set_yticklabels(ylabels, fontsize=16)
 
+for sta in station_order:
+    distance_km = station_distance_km.get(sta)
+    if distance_km is None:
+        continue
+
+    ax_inf.text(
+        1.02,
+        station_to_offset[sta],
+        f"{distance_km:.1f} km",
+        transform=ax_inf.get_yaxis_transform(),
+        va="center",
+        ha="left",
+        fontsize=16,
+        clip_on=False,
+    )
+
+
 ax_seis.set_xlabel("Time (s) since 2026-03-21 13:36:05 (UTC)", fontsize=16)
 ax_inf.set_xlabel("Time (s) since 2026-03-21 13:36:05 (UTC)", fontsize=16)
 
@@ -149,6 +200,6 @@ ymax = -spacing * 0.7
 ymin = (len(station_order) - 1) * spacing + spacing * 0.7
 ax_seis.set_ylim(ymin, ymax)
 
-plt.tight_layout()
+plt.tight_layout(rect=(0, 0, 0.92, 1))
 plt.show()
 

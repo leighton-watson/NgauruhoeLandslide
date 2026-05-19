@@ -16,8 +16,8 @@ except ImportError:
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-if str(ROOT / "SourceLocalisation") not in sys.path:
-    sys.path.append(str(ROOT / "SourceLocalisation"))
+if str(ROOT / "AnalysisCodes") not in sys.path:
+    sys.path.append(str(ROOT / "AnalysisCodes"))
 
 from source_localisation import (  # noqa: E402
     _extract_station_metadata,
@@ -46,6 +46,7 @@ INFRASOUND_VELOCITY = 334.0
 USE_SATELLITE_BASEMAP = True
 BASEMAP_SOURCE = "https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
 BASEMAP_ZOOM = "auto"
+MAP_VERTICAL_FRACTION = 0.5
 STATION_MARKER_SIZE = 100
 CRATER_MARKER_SIZE = 220
 AXIS_LABEL_FONTSIZE = 15
@@ -358,9 +359,21 @@ def plot_density_summary(best_result, summary_df: pd.DataFrame, topo, save_path:
     x_max = float(search_grid.x_grid.max())
     y_min = float(search_grid.y_grid.min())
     y_max = float(search_grid.y_grid.max())
+    y_mid = (y_min + y_max) / 2.0
+    y_half_span = (y_max - y_min) * MAP_VERTICAL_FRACTION / 2.0
+    plot_y_min = y_mid - y_half_span
+    plot_y_max = y_mid + y_half_span
 
     print("Creating matplotlib figure...")
-    fig, axes = plt.subplots(1, 2, figsize=(15, 6.5), constrained_layout=True, sharex=True, sharey=True)
+    fig, axes = plt.subplots(
+        1,
+        2,
+        figsize=(15, 7.0),
+        constrained_layout=False,
+        sharex=True,
+        sharey=True,
+        gridspec_kw={"wspace": 0.06},
+    )
     ax_left, ax_right = axes
 
     print("Drawing left-panel RMS map...")
@@ -372,7 +385,7 @@ def plot_density_summary(best_result, summary_df: pd.DataFrame, topo, save_path:
         shading="auto",
         cmap="viridis_r",
     )
-    left_cbar = fig.colorbar(left_im, ax=ax_left, pad=0.02)
+    left_cbar = fig.colorbar(left_im, ax=ax_left, pad=0.01, fraction=0.046)
     left_cbar.set_label("RMS residual (s)", fontsize=COLORBAR_LABEL_FONTSIZE)
     left_cbar.ax.tick_params(labelsize=COLORBAR_TICK_FONTSIZE)
 
@@ -399,10 +412,10 @@ def plot_density_summary(best_result, summary_df: pd.DataFrame, topo, save_path:
     ax_left.yaxis.offsetText.set_fontsize(AXIS_TICK_FONTSIZE)
     ax_left.legend(loc="upper right", fontsize=LEGEND_FONTSIZE)
     ax_left.set_xlim(x_min, x_max)
-    ax_left.set_ylim(y_min, y_max)
+    ax_left.set_ylim(plot_y_min, plot_y_max)
 
     ax_right.set_xlim(x_min, x_max)
-    ax_right.set_ylim(y_min, y_max)
+    ax_right.set_ylim(plot_y_min, plot_y_max)
 
     if USE_SATELLITE_BASEMAP and ctx is not None:
         print(f"Requesting satellite basemap tiles at zoom {BASEMAP_ZOOM}...")
@@ -420,7 +433,7 @@ def plot_density_summary(best_result, summary_df: pd.DataFrame, topo, save_path:
     _add_station_markers(ax_right, station_results)
 
     masked_counts = np.ma.masked_less_equal(counts, 0.0)
-    density_cmap = plt.get_cmap("Greys").copy()
+    density_cmap = plt.get_cmap("magma").copy()
     density_cmap.set_bad(alpha=0.0)
     right_im = ax_right.pcolormesh(
         x_edges,
@@ -431,7 +444,8 @@ def plot_density_summary(best_result, summary_df: pd.DataFrame, topo, save_path:
         alpha=0.85,
         zorder=9,
     )
-    right_cbar = fig.colorbar(right_im, ax=ax_right, pad=0.02)
+    right_im.set_clim(vmin=0, vmax=100)
+    right_cbar = fig.colorbar(right_im, ax=ax_right, pad=0.01, fraction=0.046)
     right_cbar.set_label("Number of best source locations", fontsize=COLORBAR_LABEL_FONTSIZE)
     right_cbar.ax.tick_params(labelsize=COLORBAR_TICK_FONTSIZE)
     print(
@@ -458,6 +472,7 @@ def plot_density_summary(best_result, summary_df: pd.DataFrame, topo, save_path:
     ax_right.xaxis.offsetText.set_fontsize(AXIS_TICK_FONTSIZE)
     ax_right.yaxis.offsetText.set_fontsize(AXIS_TICK_FONTSIZE)
     ax_right.legend(loc="upper right", fontsize=LEGEND_FONTSIZE)
+    fig.subplots_adjust(left=0.07, right=0.96, bottom=0.14, top=0.9, wspace=0.06)
     save_path.parent.mkdir(parents=True, exist_ok=True)
     print(f"Saving figure to {save_path}...")
     fig.savefig(save_path, bbox_inches="tight")
