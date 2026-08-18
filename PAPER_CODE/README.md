@@ -197,22 +197,7 @@ The archived input data, derived outputs, and final figures are included so that
 
 Seismic and infrasound waveform data and station metadata were obtained from the New Zealand GeoNet programme. Topographic data were obtained from Land Information New Zealand. Weather observations were obtained from Earth Sciences New Zealand. Users should consult the respective data providers for their current licensing, attribution, and citation requirements.
 
-## Citation
-
-If you use this repository, please cite both the associated paper and the archived software release. The publication and Zenodo citation details should be inserted here once they are available:
-
-```text
-Watson, L. M., and Lamb, O. (YEAR). Locating a landslide at Ngauruhoe
-(New Zealand) using seismic data. JOURNAL. DOI
-
-Watson, L. M., and Lamb, O. (YEAR). Code for “Locating a landslide at
-Ngauruhoe (New Zealand) using seismic data” (VERSION). Zenodo. DOI
-```
-
-## Licence
-
-Add the repository's software licence here and include the corresponding `LICENSE` file. Data files may remain subject to the terms of their original providers.
 
 ## Contact
 
-For questions about the code or analysis, contact Leighton M. Watson.
+For questions about the code or analysis, contact Leighton M. Watson. 
