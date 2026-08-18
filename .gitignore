@@ -1,2 +1,17 @@
+# Ignore everything in the repository root
+/*
+
+# Keep these
+!/.gitignore
+!/PAPER_CODE/
+
+# Ignore generated Python and macOS files anywhere
+**/.DS_Store
+**/__pycache__/
+**/*.py[cod]
+
+# Ignore these file types
+*.mseed
+*.xml
 *.pdf
 *.png
